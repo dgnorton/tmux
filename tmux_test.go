@@ -168,13 +168,25 @@ func TestPane_Process(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proc, err := panes[0].StartProcess("vim")
+	pane := panes[0]
+
+	proc, err := pane.StartProcess("vim")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	processes, err := pane.Processes()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if err := proc.Restart(); err != nil {
 		t.Fatal(err)
+	}
+
+	if len(processes) != 2 {
+		t.Fatalf("got: %d, exp: 2", len(processes))
 	}
 
 	if err := proc.Kill(); err != nil {

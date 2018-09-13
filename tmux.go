@@ -354,7 +354,7 @@ type Pane struct {
 	ID     string
 	Active bool
 	Index  int
-	PID    int
+	PID    int32
 	Title  string
 	Window *Window
 }
@@ -506,11 +506,31 @@ func (p *Pane) StartProcess(cmd string, args ...string) (*Process, error) {
 
 // Processes returns a list of processes owned by this pane.
 func (p *Pane) Processes() ([]*Process, error) {
-	_, err := process.Processes()
+	procs, err := process.Processes()
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+
+	processes := []*Process{}
+	for _, proc := range procs {
+		ppid, err := proc.Ppid()
+		if err != nil {
+			return nil, err
+		}
+		if proc.Pid == p.PID || ppid == p.PID {
+			cmdline, err := proc.Cmdline()
+			if err != nil {
+				return nil, err
+			}
+			processes = append(processes, &Process{
+				PID:     proc.Pid,
+				Cmdline: cmdline,
+				Pane:    p,
+			})
+		}
+	}
+
+	return processes, nil
 }
 
 // Target returns the target name for the Pane. This is the value that would
@@ -623,7 +643,7 @@ func run(t targeter, tmuxCmd string, args ...string) (string, error) {
 func Run(tmuxCmd string, args ...string) (string, error) {
 	args = append([]string{tmuxCmd}, args...)
 	cmd := exec.Command("tmux", args...)
-	fmt.Printf("tmux %s \n", strings.Join(args, " "))
+	//fmt.Printf("tmux %s \n", strings.Join(args, " "))
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err
@@ -698,7 +718,7 @@ func parsePane(s string) (*Pane, error) {
 		ID:     fields[0],
 		Active: fields[3] == "1",
 		Index:  index,
-		PID:    pid,
+		PID:    int32(pid),
 		Title:  fields[2],
 	}
 
